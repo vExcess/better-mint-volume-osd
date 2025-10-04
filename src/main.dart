@@ -20,6 +20,7 @@ var running = true;
 
 int prevLevel = 0;
 int level = 0;
+bool muted = false;
 double mid = 58/2;
 double speakerX = 11;
 double barX = 47;
@@ -27,9 +28,16 @@ double textX = 234;
 bool dragging = false;
 int displayTimer = 0;
 
-int getVolume() {
-    final res = Process.runSync("amixer", "-c 1 -M -D pulse get Master".split(' '));
-    final volumes = res.stdout.toString().split("%]").map((s) {
+bool gettingVolume = false;
+bool settingVolume = false;
+
+Future<void> getVolume() async {
+    final res = await Process.run("amixer", "-c 1 -M -D pulse get Master".split(' '));
+    final resStr = res.stdout.toString();
+    if (resStr.contains("[off]")) {
+        muted = true;
+    }
+    final volumes = resStr.split("%]").map((s) {
         var val = "";
         var i = s.length-1;
         while (s.codeUnitAt(i) >= 48 && s.codeUnitAt(i) <= 57) {
@@ -43,7 +51,8 @@ int getVolume() {
         avg += int.parse(val);
     }
     avg /= volumes.length;
-    return avg.toInt();
+    level = avg.toInt();
+    gettingVolume = false;
 }
 
 void renderOSD() {
@@ -67,7 +76,12 @@ void renderOSD() {
     noFill();
     stroke(225);
     strokeWeight(4);
-    arc(speakerX+18, mid, 8, 14, 180+90+30, 360+90-30);
+    if (!muted) {
+        arc(speakerX+18, mid, 8, 14, 180+90+30, 360+90-30);
+    } else {
+        line(speakerX+18+2, mid-4, speakerX+18+2+8, mid+4);
+        line(speakerX+18+2, mid+4, speakerX+18+2+8, mid-4);
+    }
     
     // bar
     noStroke();
@@ -86,19 +100,29 @@ void renderOSD() {
 }
 
 void quit() {
-    var isRunningFile = File("/tmp/better-mint-volume-osd.txt");
-    if (!isRunningFile.existsSync()) {
-        isRunningFile.createSync();
+    var isRunningFile = File("/tmp/btrmintvol.txt");
+    if (isRunningFile.existsSync()) {
+        isRunningFile.writeAsStringSync("0");
     }
-    isRunningFile.writeAsStringSync("0");
     running = false;
+}
+
+void updateVolume() {
+    if (!gettingVolume) {
+        gettingVolume = true;
+        getVolume().onError((e, s) {
+            gettingVolume = false;
+        });
+    }
 }
 
 void draw() {
     // check for events
     window.pollInput();
 
-    level = getVolume();
+    if (get.frameCount % 5 == 0 && !gettingVolume && !settingVolume) {
+        updateVolume();
+    }
 
     background(0);
     renderOSD();
@@ -133,10 +157,15 @@ void mousePressed(MouseEvent event) {
 }
 
 void mouseDragged(MouseEvent event) {
-    if (dragging) {
+    if (dragging && !settingVolume) {
+        settingVolume = true;
         level = constrain(((get.mouseX - barX) / 160 * 100).round(), 0, 100).toInt();
+        Process.run("amixer", "-D pulse sset Master ${level}%".split(' ')).then((_) {
+            settingVolume = false;
+        }).onError((e, s) {
+            settingVolume = false;
+        });
     }
-    renderOSD();
 }
 
 void mouseReleased(MouseEvent event) {
@@ -157,8 +186,27 @@ void myEventHandler(Event event) {
     }
 }
 
-Future<void> main() async {
-    var isRunningFile = File("/tmp/better-mint-volume-osd.txt");
+int increment = 5;
+
+Future<void> main(List<String> arguments) async {
+    var configFile = File("${Platform.environment['HOME']}/.btrmintvol/config.yaml");
+    if (!configFile.existsSync()) {
+        configFile.createSync(recursive: true);
+        configFile.writeAsStringSync("increment: ${increment}");
+    }
+
+    increment = int.parse(configFile.readAsStringSync().split(":")[1]);
+
+    if (arguments.isNotEmpty) {
+        final op = arguments[0][0];
+        if (op == '+' || op == "-") {
+            Process.runSync("amixer", "-D pulse sset Master ${increment}%${op}".split(' '));
+        } else if (op == "m") {
+            Process.runSync("amixer", "-D pulse set Master 1+ toggle".split(' '));
+        }
+    }
+
+    var isRunningFile = File("/tmp/btrmintvol.txt");
     if (!isRunningFile.existsSync()) {
         isRunningFile.createSync();
     }
@@ -206,6 +254,8 @@ Future<void> main() async {
     window.eventHandler = myEventHandler;
 
     globalizeDL(dl);
+
+    updateVolume();
 
     frameRate(60);
     dl.draw = draw;  

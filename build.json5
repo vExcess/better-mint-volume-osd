@@ -5,7 +5,7 @@
     repository: "https://github.com/vExcess/better-mint-volume-osd",
 
     modules: {
-        osd: {
+        btrmintvol: {
             root: "src/main.dart",
             version: "1.0.1",
             dependencies: [
@@ -19,7 +19,7 @@
         }]
     },
 
-    default: "osd",
+    default: "btrmintvol",
 
     run: {
         dev: "dart run -r src/main.dart"

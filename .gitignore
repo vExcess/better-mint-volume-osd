@@ -2,6 +2,7 @@
 build
 .dart_tool/
 jvbuild-cache/
+jvbuild-out/btrmintvol
 pubspec.lock
 pubspec.yaml
 
