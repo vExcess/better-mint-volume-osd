@@ -1,0 +1,27 @@
+{
+    name: "Better Mint Volume OSD",
+    description: "Improved volume OSD for Linux Mint",
+    author: "VExcess <github.com/vexcess>",
+    repository: "https://github.com/vExcess/better-mint-volume-osd",
+
+    modules: {
+        osd: {
+            root: "src/main.dart",
+            version: "1.0.1",
+            dependencies: [
+                "drawlite_dart",
+            ]
+        },
+
+        // import drawlite + deps
+        $importAll: [{
+            remote: "https://github.com/librepaint/drawlite"
+        }]
+    },
+
+    default: "osd",
+
+    run: {
+        dev: "dart run -r src/main.dart"
+    }
+}
