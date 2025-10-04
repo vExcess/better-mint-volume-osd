@@ -36,6 +36,8 @@ Future<void> getVolume() async {
     final resStr = res.stdout.toString();
     if (resStr.contains("[off]")) {
         muted = true;
+    } else {
+        muted = false;
     }
     final volumes = resStr.split("%]").map((s) {
         var val = "";
