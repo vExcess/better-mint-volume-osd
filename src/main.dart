@@ -32,7 +32,68 @@ bool gettingVolume = false;
 bool settingVolume = false;
 
 Future<void> getVolume() async {
+    // get default audio sink name
+    final pactlInfoPromise = Process.run("pactl", ["info"]);
+    // get audio sinks
+    final pactlListsPromise = Process.run("pactl", ["list", "sinks"]);
+    
+    final results = await Future.wait([
+        pactlInfoPromise,
+        pactlListsPromise,
+    ]);
+    final pactlInfo = results[0];
+    final pactlLists = results[1];
+
+    // part default audio sink
+    final pactlInfoStr = pactlInfo.stdout.toString();
+    String? defaultSinkName = null;
+    pactlInfoStr.split("\n").forEach((line) {
+        if (line.trimLeft().startsWith("Default Sink")) {
+            defaultSinkName = line.substring(line.indexOf(":") + 1).trim();
+        }
+    });
+
+    if (defaultSinkName != null) {
+        // parse audio sinks for default volume
+        final pactlListsStr = pactlLists.stdout.toString();
+        final lines = pactlListsStr.split("\n");
+        var idx = 0;
+        for (final line in lines) {
+            if (line.trimLeft().startsWith("Name:") && line.contains(defaultSinkName!)) {
+                while (lines[idx].trim().isNotEmpty) {
+                    if (lines[idx].trimLeft().startsWith("Mute")) {
+                        muted = lines[idx].contains("yes");
+                    } else if (lines[idx].trimLeft().startsWith("Volume")) {
+                        final volumes = lines[idx]
+                            .split(",")
+                            .map((speaker) {
+                                return speaker
+                                    .split("/")
+                                    .where((chunk) => chunk.contains("%"))
+                                    .first.trim()
+                                    .replaceFirst("%", "");
+                            });
+                        
+                        var avg = 0.0;
+                        for (String val in volumes) {
+                            avg += int.parse(val);
+                        }
+                        avg /= volumes.length;
+                        level = avg.toInt();
+                    }
+                    idx++;
+                }
+                break;
+            }
+            idx++;
+        }
+    }
+
+    // the following gets the volume with amixer
+    // but I'm preferring to use pactl instead because it takes 10 millis instead of 20 millis
+    /*
     final res = await Process.run("amixer", "-c 1 -M -D pulse get Master".split(' '));
+
     final resStr = res.stdout.toString();
     if (resStr.contains("[off]")) {
         muted = true;
@@ -48,12 +109,8 @@ Future<void> getVolume() async {
         }
         return val.split("").reversed.join("");
     }).where((s) => s.isNotEmpty).toList();
-    var avg = 0.0;
-    for (String val in volumes) {
-        avg += int.parse(val);
-    }
-    avg /= volumes.length;
-    level = avg.toInt();
+    */
+
     gettingVolume = false;
 }
 

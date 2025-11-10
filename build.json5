@@ -7,7 +7,7 @@
     modules: {
         btrmintvol: {
             root: "src/main.dart",
-            version: "1.0.1",
+            version: "1.0.2",
             dependencies: [
                 "drawlite_dart",
             ]
