@@ -56,5 +56,9 @@ increment: 4
 ### Complete
 You can now use keyboard shortcuts to adjust your audio volume to your liking!
 
+### Known Bugs
+This project relies on alsa-utils. The current version of alsa-utils packaged with Linux Mint has a bug. Unfortunately, it is not possible to install a newer version on Linux Mint at the time.  
+[https://github.com/alsa-project/alsa-utils/issues/313](https://github.com/alsa-project/alsa-utils/issues/313)
+
 ## Screenshot
 ![screenshot](https://github.com/vExcess/better-mint-volume-osd/blob/main/thumbnail.png?raw=true)
